@@ -57,6 +57,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$KEXT/Contents/Info.plist"
           file "$KEXT/Contents/MacOS/AirPort_RTW88"
           lipo -info "$KEXT/Contents/MacOS/AirPort_RTW88"
+          codesign --force --deep --sign - "$KEXT"
           python3 tests/audit_offline.py
           python3 tests/verify_bundle.py "$KEXT"
 
