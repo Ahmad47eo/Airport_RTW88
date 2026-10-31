@@ -30,27 +30,42 @@ struct firmware {
 /*  zlib allocators — mirrors itlwm/itl80211/zutil.c exactly          */
 /* ------------------------------------------------------------------ */
 
-typedef struct z_mem {
-    uint32_t alloc_size;
-    uint8_t  data[0];
+/*
+ * zlib may request storage for pointer- and 64-bit-aligned internal objects.
+ * Keep a 16-byte-aligned header so the returned payload is also 16-byte
+ * aligned on x86_64. The previous 32-bit header placed payload at +4,
+ * which could misalign zlib state and trigger undefined behavior.
+ */
+typedef union __attribute__((aligned(16))) z_mem {
+    struct {
+        size_t alloc_size;
+    } meta;
+    uint64_t align_u64;
+    void *align_ptr;
 } z_mem;
 
 static voidpf rtw88_zcalloc(voidpf opaque, uInt items, uInt size)
 {
     (void)opaque;
-    uint32_t alloc = (uint32_t)(items * size) + (uint32_t)sizeof(z_mem *);
+
+    if (size != 0 && (size_t)items > (SIZE_MAX - sizeof(z_mem)) / (size_t)size)
+        return Z_NULL;
+
+    size_t alloc = sizeof(z_mem) + (size_t)items * (size_t)size;
     z_mem *zm = (z_mem *)IOMalloc(alloc);
     if (!zm) return Z_NULL;
-    zm->alloc_size = alloc;
-    return (voidpf)zm->data;
+
+    zm->meta.alloc_size = alloc;
+    return (voidpf)(zm + 1);
 }
 
 static void rtw88_zcfree(voidpf opaque, voidpf ptr)
 {
     (void)opaque;
     if (!ptr) return;
-    z_mem *zm = (z_mem *)((uint32_t *)ptr - 1);
-    IOFree(zm, zm->alloc_size);
+
+    z_mem *zm = ((z_mem *)ptr) - 1;
+    IOFree(zm, zm->meta.alloc_size);
 }
 
 /* ------------------------------------------------------------------ */
