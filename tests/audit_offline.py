@@ -8,6 +8,28 @@ def run(args, **kw):
         raise RuntimeError(f"Command failed ({result.returncode}): {args}\n{result.stdout}\n{result.stderr}")
     return result.stdout
 commands = run(['make', '-Bn', 'airport'], cwd=ROOT).splitlines()
+
+# Source-level regression guards for critical radio paths.
+tx_source = (ROOT / 'src/kext/RTW88IEEE80211.cpp').read_text()
+assert 'multicast ? _gtkConf : _ptkConf' in tx_source
+assert 'info->control.hw_key = txKey;' in tx_source
+assert '((uint8_t)txKey->keyidx & 0x3)' in tx_source
+print('PASS: multicast/broadcast TX selects GTK; unicast TX selects PTK')
+
+fw_source = (ROOT / 'src/compat/rtw88_firmware.c').read_text()
+assert 'typedef union __attribute__((aligned(16))) z_mem' in fw_source
+assert 'return (voidpf)(zm + 1);' in fw_source
+assert '((z_mem *)ptr) - 1' in fw_source
+assert 'SIZE_MAX - sizeof(z_mem)' in fw_source
+print('PASS: firmware zlib allocator alignment and overflow guard')
+
+irq_source = (ROOT / 'src/compat/rtw88_compat.c').read_text()
+irq_start = irq_source.index('int rtw88_devm_request_threaded_irq(')
+irq_end = irq_source.index('void rtw88_devm_free_irq', irq_start)
+irq_impl = irq_source[irq_start:irq_end]
+assert 'if (!call)' in irq_impl and 'return -ENOMEM;' in irq_impl
+assert irq_impl.index('if (!call)') < irq_impl.index('g_irq_handler = handler;')
+print('PASS: IRQ registration fails cleanly if thread-call allocation fails')
 def compiler(source, language, output):
     needle = '/main.c' if language == 'c' else '/AirportRTW88.cpp'
     line = next(x for x in commands if x.startswith('xcrun clang') and ' -c ' in x and needle in x)
