@@ -102,20 +102,24 @@ static inline bool dma_mapping_error(struct device *dev, dma_addr_t addr)
     return addr == 0 || addr == (dma_addr_t)-1;
 }
 
-/* Page abstraction for RX ring allocations */
+/* Page abstraction for RX ring allocations.
+ *
+ * These pages are ordinary CPU allocations, not DMA memory. Never expose
+ * their virtual addresses as bus addresses. Route page mappings through the
+ * platform DMA mapper so macOS can provide a physically contiguous bounce
+ * buffer and copy RX data back before the CPU reads it.
+ */
+#define RTW88_COMPAT_PAGE_SIZE 4096
+
 struct page {
-    void      *virt;
-    dma_addr_t phys;
+    void *virt;
 };
 
 static inline struct page *alloc_page(gfp_t flags)
 {
-    /* Allocate struct page + 4096-byte data in one chunk */
-    struct page *p = (struct page *)kzalloc(sizeof(*p) + 4096, flags);
-    if (p) {
+    struct page *p = (struct page *)kzalloc(sizeof(*p) + RTW88_COMPAT_PAGE_SIZE, flags);
+    if (p)
         p->virt = (void *)((char *)p + sizeof(*p));
-        p->phys = (dma_addr_t)(uintptr_t)p->virt;
-    }
     return p;
 }
 
@@ -132,10 +136,17 @@ static inline void *page_address(struct page *page)
 static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
                                        size_t offset, size_t size, int dir)
 {
-    return page->phys + offset;
+    if (!page || !page->virt || offset > RTW88_COMPAT_PAGE_SIZE ||
+        size > RTW88_COMPAT_PAGE_SIZE - offset)
+        return 0;
+
+    return dma_map_single(dev, (char *)page->virt + offset, size, dir);
 }
 
 static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
-                                   size_t size, int dir) {}
+                                   size_t size, int dir)
+{
+    dma_unmap_single(dev, addr, size, dir);
+}
 
 #endif /* _RTW88_COMPAT_DMA_MAPPING_H */
