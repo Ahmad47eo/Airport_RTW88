@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
-"""Verify bundle metadata and forbidden imports without loading a kext."""
+"""Verify current AirPort bundle metadata and forbidden imports without loading a kext."""
 import pathlib, plistlib, subprocess, sys
-r=pathlib.Path(__file__).resolve().parents[1]
-b=pathlib.Path(sys.argv[1]).resolve() if len(sys.argv)>1 else r/'build/out/AirPort_RTW88.kext'
-p=plistlib.loads((b/'Contents/Info.plist').read_bytes())
-template=plistlib.loads((r/'AirPort_RTW88.kext/Contents/Info.plist').read_bytes())
-assert p==template, 'Packaged plist differs from source'
-assert p['CFBundleIdentifier']=='com.rtw88.airport'
-assert p['CFBundleVersion']==p['CFBundleShortVersionString']=='1.0.1'
-assert p['CFBundlePackageType']=='KEXT'
-assert 'com.apple.kpi.private' not in p['OSBundleLibraries']
-exe=b/'Contents/MacOS'/p['CFBundleExecutable'];assert exe.is_file()
-assert b'com.rtw88.airport\x00' in exe.read_bytes() and b'1.0.1\x00' in exe.read_bytes()
-for personality in p['IOKitPersonalities'].values():
-    assert personality['CFBundleIdentifier']==p['CFBundleIdentifier']
-    assert personality['IOProviderClass']=='IOPCIDevice'
-    assert personality['IOPCIMatch']=='0xB82210EC'
-undefined=subprocess.check_output(['xcrun','nm','-uj',str(exe)],text=True).splitlines()
-for symbol in ['_thread_call_cancel_wait','_OSRuntimeInitializeCPP','_OSRuntimeFinalizeCPP']:
+
+root = pathlib.Path(__file__).resolve().parents[1]
+bundle = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "build/out/AirPort_RTW88.kext"
+plist_path = bundle / "Contents/Info.plist"
+plist = plistlib.loads(plist_path.read_bytes())
+template = plistlib.loads((root / "AirPort_RTW88.kext/Contents/Info.plist").read_bytes())
+
+assert plist == template, "Packaged plist differs from source"
+assert plist["CFBundleIdentifier"] == "com.gptmade.wifi"
+assert plist["CFBundleName"] == "GPTMadeAWiFiDriver"
+assert plist["CFBundleVersion"] == plist["CFBundleShortVersionString"] == "1.0.0"
+assert plist["CFBundlePackageType"] == "KEXT"
+assert "com.apple.kpi.private" not in plist["OSBundleLibraries"]
+
+executable = bundle / "Contents/MacOS" / plist["CFBundleExecutable"]
+assert executable.is_file(), f"Missing executable: {executable}"
+binary = executable.read_bytes()
+assert b"com.gptmade.wifi\\x00" in binary, "kmod identifier does not match bundle identifier"
+assert b"1.0.1\\x00" in binary, "Unexpected kmod version"
+
+for name, personality in plist["IOKitPersonalities"].items():
+    assert personality["CFBundleIdentifier"] == plist["CFBundleIdentifier"], name
+    assert personality["IOProviderClass"] == "IOPCIDevice", name
+    assert set(personality["IOPCIMatch"].split()) == {"0xC82110EC", "0xB82110EC"}, name
+
+undefined = subprocess.check_output(["xcrun", "nm", "-uj", str(executable)], text=True).splitlines()
+for symbol in ["_thread_call_cancel_wait", "_OSRuntimeInitializeCPP", "_OSRuntimeFinalizeCPP"]:
     assert symbol not in undefined, symbol
-subprocess.run(['codesign','--verify','--strict',str(b)],check=True)
-print('PASS: bundle/template versions, executable, PCI personality, ad hoc signature and forbidden imports')
+
+subprocess.run(["codesign", "--verify", "--strict", str(bundle)], check=True)
+print("PASS: bundle metadata, kmod identity/version, PCI personalities, signature and forbidden imports")
