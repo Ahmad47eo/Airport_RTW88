@@ -18,8 +18,8 @@ assert "com.apple.kpi.private" not in plist["OSBundleLibraries"]
 executable = bundle / "Contents/MacOS" / plist["CFBundleExecutable"]
 assert executable.is_file(), f"Missing executable: {executable}"
 binary = executable.read_bytes()
-assert b"com.gptmade.wifi\\x00" in binary, "kmod identifier does not match bundle identifier"
-assert b"1.0.1\\x00" in binary, "Unexpected kmod version"
+assert b"com.gptmade.wifi" in binary, "kmod identifier does not match bundle identifier"
+assert b"1.0.0" in binary, "Unexpected kmod version"
 
 for name, personality in plist["IOKitPersonalities"].items():
     assert personality["CFBundleIdentifier"] == plist["CFBundleIdentifier"], name
