@@ -3383,7 +3383,18 @@ bool RTW88IEEE80211::txDataFrame(mbuf_t m)
               _externalSupplicant, _state, _ptkConf, paylen);
     }
 
-    bool protected_frame = _wpa2 && _ptkConf && ethertype != ETH_P_PAE;
+    /* 802.11 group-addressed frames must use the GTK, not the PTK.
+     * The first address octet's I/G bit distinguishes multicast/broadcast.
+     * Never silently send protected traffic in clear if its key is missing. */
+    bool multicast = (eh[0] & 0x01) != 0;
+    struct ieee80211_key_conf *txKey = multicast ? _gtkConf : _ptkConf;
+    bool protected_frame = _wpa2 && ethertype != ETH_P_PAE;
+    if (protected_frame && !txKey) {
+        IOLog("rtw88: dropping protected %s frame; key is not installed\n",
+              multicast ? "group" : "pairwise");
+        mbuf_freem(m);
+        return false;
+    }
 
     /* Use a QoS Data frame (24-byte header + 2-byte QoS Control) when HT is in
      * use — A-MPDU/BlockAck is strictly per-TID and a plain Data frame carries
@@ -3433,7 +3444,7 @@ bool RTW88IEEE80211::txDataFrame(mbuf_t m)
         ccmp[0] = _ccmpTxPn[0];
         ccmp[1] = _ccmpTxPn[1];
         ccmp[2] = 0x00;
-        ccmp[3] = (uint8_t)(0x20 | (((uint8_t)_ptkConf->keyidx & 0x3) << 6));
+        ccmp[3] = (uint8_t)(0x20 | (((uint8_t)txKey->keyidx & 0x3) << 6));
         ccmp[4] = _ccmpTxPn[2];
         ccmp[5] = _ccmpTxPn[3];
         ccmp[6] = _ccmpTxPn[4];
@@ -3479,7 +3490,7 @@ bool RTW88IEEE80211::txDataFrame(mbuf_t m)
     info->control.vif = _vif;
     info->control.sta = _sta;
     if (protected_frame)
-        info->control.hw_key = _ptkConf;
+        info->control.hw_key = txKey;
 
     struct ieee80211_tx_control ctrl = { .sta = _sta };
     _hw->ops->tx(_hw, &ctrl, skb);
