@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='rtw88-audit-') as td:
     (mach/'mach_types.h').write_text('typedef int kern_return_t;\n#define KERN_SUCCESS 0\n')
     (mach/'kmod.h').write_text('typedef struct {const char *name; const char *version;} kmod_info_t;\ntypedef int kmod_start_func_t(kmod_info_t *, void *);\ntypedef int kmod_stop_func_t(kmod_info_t *, void *);\n#define KMOD_EXPLICIT_DECL(a,b,c,d)\n')
     test=tmp/'entry_test.c'
-    test.write_text('#include "'+str(ROOT/'src/kext/kmod_info.c')+'"\nint main(void) { kmod_info_t k={"com.rtw88.airport","test"}; return _realmain(&k,0) || _antimain(&k,0); }\n')
+    test.write_text('#include "'+str(ROOT/'src/kext/kmod_info.c')+'"\nint main(void) { kmod_info_t k={"com.gptmade.wifi","test"}; return _realmain(&k,0) || _antimain(&k,0); }\n')
     exe=tmp/'entry_test'; run(['xcrun','clang','-I'+str(tmp),'-DRTW88_AIRPORT_KMOD=1',str(test),'-o',str(exe)])
     print(run([str(exe)]).strip());print('PASS: actual module callbacks execute without runtime reinitialization')
 
