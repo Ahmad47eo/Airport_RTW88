@@ -460,12 +460,28 @@ int rtw88_devm_request_threaded_irq(struct device *dev, unsigned int irq,
         irq_handler_t handler, irq_handler_t thread_fn,
         unsigned long flags, const char *name, void *dev_id)
 {
+    (void)dev;
+    (void)irq;
+    (void)flags;
+    (void)name;
+
+    if (!handler || !thread_fn || !dev_id)
+        return -EINVAL;
+
+    /* This compatibility layer supports one active PCI radio. Do not report
+     * success unless the deferred interrupt handler can actually run. */
+    if (g_irq_thread_call)
+        return -EBUSY;
+
+    thread_call_t call = thread_call_allocate(
+        (thread_call_func_t)rtw88_irq_thread_wrapper, NULL);
+    if (!call)
+        return -ENOMEM;
+
+    g_irq_thread_call = call;
     g_irq_handler = handler;
     g_irq_thread_fn = thread_fn;
     g_irq_dev_id = dev_id;
-    if (g_irq_thread_call == NULL) {
-        g_irq_thread_call = thread_call_allocate((thread_call_func_t)rtw88_irq_thread_wrapper, NULL);
-    }
     return 0;
 }
 
