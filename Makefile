@@ -371,7 +371,9 @@ $(AIRPORT_OUT_BIN): $(AIRPORT_ALL_OBJS) $(AIRPORT_KEXT_SKEL)/Contents/Info.plist
 
 $(BUILD_DIR)/airport/%.o: $(KEXT_SRC)/%.cpp | $(BUILD_DIR)/airport
 	@echo "  CXX  $(notdir $<)"
-	$(CXX) $(KEXT_CXXFLAGS) -D__IO80211_TARGET=__MAC_13_0 -c $< -o $@
+	$(CXX) $(AIRPORT_CXXFLAGS) -D__IO80211_TARGET=__MAC_13_0 -c $< -o $@
+
+AIRPORT_CXXFLAGS := $(KEXT_CXXFLAGS) -include $(PROJ_ROOT)/tests/fixtures/airportitlwm-2.3.0/apple80211_ioctl.h
 
 $(AIRPORT_KMOD_OBJ): $(KEXT_SRC)/kmod_info.c | $(BUILD_DIR)/airport
 	@echo "  CC   airport/kmod_info.c"
