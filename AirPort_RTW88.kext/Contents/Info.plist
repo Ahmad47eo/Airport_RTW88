@@ -11,16 +11,16 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>GPTMadeAWiFiDriver</string>
+    <string>GPT</string>
     <key>CFBundlePackageType</key>
     <string>KEXT</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.0.2</string>
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
     <key>IOKitPersonalities</key>
     <dict>
-        <key>GPTMadeAWiFiDriver</key>
+        <key>GPT</key>
         <dict>
             <key>CFBundleIdentifier</key>
             <string>com.gptmade.wifi</string>
