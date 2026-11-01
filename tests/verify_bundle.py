@@ -3,15 +3,15 @@
 import pathlib, plistlib, subprocess, sys
 
 root = pathlib.Path(__file__).resolve().parents[1]
-bundle = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "build/out/AirPort_RTW88.kext"
+bundle = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "build/out/GPT.kext"
 plist_path = bundle / "Contents/Info.plist"
 plist = plistlib.loads(plist_path.read_bytes())
 template = plistlib.loads((root / "AirPort_RTW88.kext/Contents/Info.plist").read_bytes())
 
 assert plist == template, "Packaged plist differs from source"
 assert plist["CFBundleIdentifier"] == "com.gptmade.wifi"
-assert plist["CFBundleName"] == "GPTMadeAWiFiDriver"
-assert plist["CFBundleVersion"] == plist["CFBundleShortVersionString"] == "1.0.0"
+assert plist["CFBundleName"] == "GPT"
+assert plist["CFBundleVersion"] == plist["CFBundleShortVersionString"] == "1.0.2"
 assert plist["CFBundlePackageType"] == "KEXT"
 assert "com.apple.kpi.private" not in plist["OSBundleLibraries"]
 
@@ -19,7 +19,7 @@ executable = bundle / "Contents/MacOS" / plist["CFBundleExecutable"]
 assert executable.is_file(), f"Missing executable: {executable}"
 binary = executable.read_bytes()
 assert b"com.gptmade.wifi" in binary, "kmod identifier does not match bundle identifier"
-assert b"1.0.0" in binary, "Unexpected kmod version"
+assert b"1.0.2" in binary, "Unexpected kmod version"
 
 for name, personality in plist["IOKitPersonalities"].items():
     assert personality["CFBundleIdentifier"] == plist["CFBundleIdentifier"], name
