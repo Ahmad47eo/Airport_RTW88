@@ -167,22 +167,26 @@ KNOWN LIMITATIONS / TODO
 6. Driver signing: required for SIP-enabled macOS without OpenCore.
 
 
-AIRPORT NATIVE TARGET — AirPort_RTW88 1.0.1
+GPT NATIVE AIRPORT TARGET — version 1.0.2
 ------------------------------------------------
 Build:
   make clean
   make airport
 
 Output:
-  build/out/AirPort_RTW88.kext
+  build/out/GPT.kext
+
+The bundle directory is already named GPT.kext; do not rename it after building.
+The executable inside remains Contents/MacOS/AirPort_RTW88.
 
 OpenCore Kernel -> Add:
-  BundlePath:     AirPort_RTW88.kext
+  BundlePath:     GPT.kext
   ExecutablePath: Contents/MacOS/AirPort_RTW88
   PlistPath:      Contents/Info.plist
 
-Do NOT load the old AirportRTW88.kext at the same time. The internal IOClass
-remains AirportRTW88 and the bundle ID remains com.rtw88.airport intentionally.
+Use the matching Info.plist from this build. Keep the bundle identifier
+com.gptmade.wifi and IOClass AirportRTW88. Do not load an older copy of this
+driver alongside GPT.kext.
 
 First AWDL check after boot:
   ifconfig | grep -A8 -E '^awdl|^llw|^p2p'
