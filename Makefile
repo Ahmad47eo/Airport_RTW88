@@ -337,7 +337,7 @@ clean:
 #   AirportRTW88Interface.hpp  AirportRTW88Interface.cpp
 
 AIRPORT_KEXT_SKEL := $(PROJ_ROOT)/AirPort_RTW88.kext
-AIRPORT_OUT_KEXT  := $(OUT_DIR)/AirPort_RTW88.kext
+AIRPORT_OUT_KEXT  := $(OUT_DIR)/GPT.kext
 AIRPORT_OUT_BIN   := $(AIRPORT_OUT_KEXT)/Contents/MacOS/AirPort_RTW88
 
 AIRPORT_KEXT_SRCS := \
@@ -367,7 +367,7 @@ $(AIRPORT_OUT_BIN): $(AIRPORT_ALL_OBJS) $(AIRPORT_KEXT_SKEL)/Contents/Info.plist
 	$(LD) $(AIRPORT_LDFLAGS) -o $@ $(AIRPORT_ALL_OBJS)
 	@echo "  SYNC $(AIRPORT_OUT_KEXT)"
 	rsync -a --exclude='MacOS' $(AIRPORT_KEXT_SKEL)/ $(AIRPORT_OUT_KEXT)/
-	@echo "  OK   build/out/AirPort_RTW88.kext"
+	@echo "  OK   build/out/GPT.kext"
 
 $(BUILD_DIR)/airport/%.o: $(KEXT_SRC)/%.cpp | $(BUILD_DIR)/airport
 	@echo "  CXX  $(notdir $<)"
