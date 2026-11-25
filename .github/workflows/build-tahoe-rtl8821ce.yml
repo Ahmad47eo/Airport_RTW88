@@ -1,0 +1,64 @@
+name: Build Tahoe RTL8821CE AirPort kext
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get rtw88 source
+        run: |
+          git clone --depth 1 https://github.com/thegwchr/rtw88-stable.git
+
+      - name: Install firmware
+        working-directory: firmware
+        run: |
+          set -euo pipefail
+          for fw in rtw8822b_fw.bin rtw8822c_fw.bin rtw8821c_fw.bin rtw8821a_fw.bin rtw8812a_fw.bin rtw8814a_fw.bin; do
+            if [ ! -s "$fw" ]; then
+              curl -fL --retry 3 -o "$fw" \
+                "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtw88/$fw"
+            fi
+            test -s "$fw"
+          done
+
+      - name: Build native AirPort kext
+        run: |
+          set -euo pipefail
+          xcode-select -p
+          make clean
+          make airport
+
+      - name: Verify RTL8821CE AirPort bundle
+        run: |
+          set -euo pipefail
+          KEXT="build/out/GPT.kext"
+          test -f "$KEXT/Contents/Info.plist"
+          test -f "$KEXT/Contents/MacOS/AirPort_RTW88"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$KEXT/Contents/Info.plist"
+          file "$KEXT/Contents/MacOS/AirPort_RTW88"
+          lipo -info "$KEXT/Contents/MacOS/AirPort_RTW88"
+          codesign --force --deep --sign - "$KEXT"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/out/GPT.kext artifact/AirPort_RTW88_Tahoe_RTL8821CE.zip
+
+      - name: Upload kext
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirPort_RTW88_Tahoe_RTL8821CE
+          path: artifact/AirPort_RTW88_Tahoe_RTL8821CE.zip
+          if-no-files-found: error
